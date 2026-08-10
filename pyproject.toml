@@ -18,6 +18,9 @@ dev = [
     "pytest>=8,<10",
     "ruff>=0.9,<1",
 ]
+probe = [
+    "sounddevice>=0.5.5,<0.6",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/lights_audio_engine"]

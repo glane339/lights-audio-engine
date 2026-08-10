@@ -38,3 +38,8 @@ jobs:
 
       - name: Run BasedPyright
         run: python -m basedpyright
+
+      - name: Probe extra import smoke test
+        run: |
+          python -m pip install --disable-pip-version-check -e ".[probe]"
+          python -c "import sounddevice; print(sounddevice.__version__)"

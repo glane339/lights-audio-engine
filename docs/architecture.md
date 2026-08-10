@@ -44,6 +44,27 @@ flowchart LR
 for that frame plus the current BPM estimate. No callback, wall clock, global state, device
 handle, consumer code, or lighting logic is involved.
 
+## 🎙️ Experimental hardware-probe sidecar
+
+M1.5 adds `lights_audio_engine.probe` outside the processing flow and stable engine boundary.
+The developer CLI uses a lazy `SoundDeviceBackend` adapter around sounddevice/PortAudio,
+checks run-local input configurations, and aggregates signal diagnostics in constant memory.
+It never retains complete PCM and never constructs `AudioFrame` or calls `AudioEngine`.
+
+```text
+Windows audio hardware
+    → sounddevice / PortAudio
+    → SoundDeviceBackend
+    → AudioProbeBackend
+    → CaptureDiagnostics
+    → developer CLI
+```
+
+The sidecar reports device indexes and names for investigation only. PortAudio does not make
+those observations stable across enumeration, replug, or reboot. Production `AudioSource`
+design, endpoint identity, loopback, resampling, reconnect, and watchdog behavior remain M4
+decisions informed by physical-hardware evidence.
+
 ## 📊 Domain contracts
 
 | Model | Contract |
@@ -124,10 +145,11 @@ until its semantics and fixtures are defined.
 
 ## 🚫 Deliberate non-goals
 
-M0/M1 does not implement WAV/file sources, paced playback, microphone capture, WASAPI,
-sounddevice, PortAudio, device discovery, reconnect logic, advanced spectral or tempo
-tracking, drop heuristics, calibrated confidence, band analysis, networking, services, GUIs,
-databases, scenes, presets, DMX, sACN/E1.31, Art-Net, WLED, LedFx control, or ILDA output.
+The stable M0/M1 engine does not implement WAV/file sources, paced playback, production
+microphone capture, reconnect logic, advanced spectral or tempo tracking, drop heuristics,
+calibrated confidence, band analysis, networking, services, GUIs, databases, scenes, presets,
+DMX, sACN/E1.31, Art-Net, WLED, LedFx control, or ILDA output. The M1.5 WASAPI/
+sounddevice/PortAudio device probe is diagnostic-only and remains outside that engine.
 
 Deterministic real-track replay and richer spectral analysis remain separately scoped future
 milestones. Neither belongs in this foundation hardening pass.
