@@ -1,6 +1,6 @@
 # Lights Audio Engine architecture
 
-_M0/M1 boundaries and deterministic processing contract for contributors._
+_M0/M1 analysis and M2A capture boundaries for contributors._
 
 ---
 
@@ -61,9 +61,26 @@ Windows audio hardware
 ```
 
 The sidecar reports device indexes and names for investigation only. PortAudio does not make
-those observations stable across enumeration, replug, or reboot. Production `AudioSource`
-design, endpoint identity, loopback, resampling, reconnect, and watchdog behavior remain M4
-decisions informed by physical-hardware evidence.
+those observations stable across enumeration, replug, or reboot. M2A now defines the
+hardware-independent `AudioSource` and frame-assembly boundary. Endpoint identity, loopback,
+resampling, reconnect, watchdog behavior, and the actual capture backend remain M2B decisions
+informed by physical-hardware evidence.
+
+## Production capture boundary (M2A)
+
+`lights_audio_engine.capture` converts backend-neutral floating-point blocks into the stable
+`AudioFrame` contract without opening hardware or depending on a capture backend. `AudioSource`
+is a synchronous blocking-pull protocol. `FrameAssembler` validates blocks, applies an explicit
+mono channel policy, clips or rejects out-of-range samples, and derives each frame start from an
+integer cumulative sample count. The default `MonoPassthrough` policy rejects multichannel input;
+`SelectChannel` and `AverageChannels` require an explicit configuration choice.
+
+Overflow, dropped blocks, sample-rate changes, and restarts are yielded as `Discontinuity`
+values. The affected block is not converted into a gapped frame, assembler timing and observed
+channel count rebase, and `run_engine` resets `AudioEngine` before processing the next logical
+stream. The driver is the only M2A component that knows both source and engine contracts. The
+M1.5 probe remains a separate diagnostic sidecar and is not a production source. M2B will supply
+the evidence-backed hardware/backend implementation without changing these M2A boundaries.
 
 ## 📊 Domain contracts
 
