@@ -20,9 +20,10 @@ The M0/M1 foundation provides:
 - An explicit `DropEvent` model with an honest no-op M1 detector
 - Deterministic reset and replay behavior
 
-This repository deliberately does not own audio-device capture, scenes, presets, fixtures,
+The stable engine deliberately does not own audio-device capture, scenes, presets, fixtures,
 DMX, sACN/E1.31, Art-Net, WLED, LedFx control, ILDA, lasers, networking, a GUI, or persistent
-show state. Those concerns belong to the downstream Lights App or later, separately scoped
+show state. M1.5 adds only an experimental hardware-diagnostic sidecar; production capture
+and the other concerns belong to the downstream Lights App or later, separately scoped
 milestones.
 
 ## 🔧 Development setup
@@ -48,6 +49,33 @@ uv run ruff format --check .
 uv run ruff check .
 uv run basedpyright
 ```
+
+## 🎙️ Hardware probe (experimental)
+
+M1.5 includes a developer-oriented Windows audio probe. It inventories PortAudio devices,
+checks input formats, and captures incremental signal diagnostics without retaining raw PCM.
+It does not produce `AudioFrame`, implement an `AudioSource`, or extend the stable package API.
+
+Install the optional backend alongside development dependencies:
+
+```powershell
+uv sync --extra dev --extra probe
+# Alternative editable install:
+python -m pip install -e ".[probe]"
+```
+
+Run the four diagnostic commands:
+
+```powershell
+uv run python -m lights_audio_engine.probe devices
+uv run python -m lights_audio_engine.probe check --device 3
+uv run python -m lights_audio_engine.probe capture --device 3 --duration 3
+uv run python -m lights_audio_engine.probe report
+```
+
+Device indexes and names are observations from the current PortAudio enumeration, not stable
+identifiers. See the [hardware probe checklist](docs/hardware-probe-checklist.md) before using
+the probe with the Lights hardware.
 
 ## 📦 Public API
 
@@ -109,6 +137,7 @@ src/lights_audio_engine/
 ├── config.py            # Frozen, validated engine configuration
 ├── engine.py            # Streaming orchestration, beat indexes, and BPM state
 ├── models.py            # Immutable input, event, and result models
+├── probe/               # Experimental hardware diagnostic sidecar
 └── detectors/
     ├── energy.py        # Minimal deterministic energy/transient detector
     └── drop.py          # Explicit no-op M1 drop detector
@@ -131,7 +160,7 @@ semantics, BPM calculation, validation rules, and downstream ownership boundary.
 - The configured sample rate is fixed for an engine instance
 - BPM preserves observed intervals but has no phase, downbeat, bar, or half/double-time model
 - Drop detection intentionally emits no events pending a measurable definition and fixtures
-- File decoding, pacing, live capture, reconnect behavior, and runtime diagnostics are deferred
+- File decoding, pacing, production live capture, and reconnect behavior are deferred
 
 Future analysis can add band energy, onset strength, rhythmic phase, and broad musical
 intensity behind the existing detector and immutable-result boundaries. Builds, drops,
