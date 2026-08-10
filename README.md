@@ -32,7 +32,7 @@ milestones.
 
 | Requirement | Version | Check command |
 | --- | ---: | --- |
-| Python | `>=3.11` | `py --version` |
+| Python | `>=3.12` | `py --version` |
 | uv | Current supported release | `uv --version` |
 
 From PowerShell:
