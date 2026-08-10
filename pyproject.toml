@@ -7,7 +7,7 @@ name = "lights-audio-engine"
 version = "0.1.0"
 description = "Deterministic party-music analysis for reactive lighting"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
     "numpy>=1.26,<3",
 ]
@@ -32,12 +32,13 @@ testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py311"
+target-version = "py312"
 
 [tool.ruff.lint]
 select = ["B", "E", "F", "I", "SIM", "UP"]
+ignore = ["UP040"]
 
 [tool.basedpyright]
 include = ["src", "tests"]
-pythonVersion = "3.11"
+pythonVersion = "3.12"
 typeCheckingMode = "strict"
