@@ -33,7 +33,7 @@ version with the observations. Device indexes and names are run-local labels onl
 | `6` | Capture/runtime failure, short read, or non-finite captured samples |
 | `130` | Capture interrupted with Ctrl+C; partial diagnostics are printed |
 
-## Laptop microphone checks for today
+## Laptop microphone checks for August 10, 2026
 
 1. Enumerate host APIs, devices, and defaults:
 
@@ -81,26 +81,52 @@ version with the observations. Device indexes and names are run-local labels onl
    uv run python -m lights_audio_engine.probe report
    ```
 
-### Today results
+### Laptop-only results — August 10, 2026
 
-| Check | Command or setup | Observed result | Exit | Notes |
-| --- | --- | --- | ---: | --- |
-| Inventory/defaults | `devices` |  |  |  |
-| Shared compatibility | `check --device <INDEX>` |  |  |  |
-| Quiet capture | 3 seconds |  |  |  |
-| Speech/music capture | 3 seconds |  |  |  |
-| Sharp-clap capture | 3 seconds |  |  |  |
-| Five repeats | 5 × 3 seconds |  |  |  |
-| Longer capture | 30 seconds |  |  |  |
-| Invalid inputs | selector/rate/channels/duration |  |  |  |
-| Exclusive mode | WASAPI and non-WASAPI |  |  |  |
-| Ctrl+C | interrupt 30 seconds |  |  |  |
-| Safe removable-device disconnect | optional |  |  |  |
-| Default report | `report` |  |  |  |
+These observations describe the built-in laptop microphone only. They are not acceptance
+results for the actual Lights hardware and do not establish stable device identity, Lights
+hardware compatibility, loopback support, the production `AudioSource` design, or direct
+line-level input behavior.
+
+Environment:
+
+- Windows
+- sounddevice 0.5.5
+- PortAudio V19.7.0-devel
+- WASAPI default input during this enumeration: device index `9`, `Microphone Array
+  (Realtek(R) Audio)`
+- Device index `9` is a run-local label and must not be treated as stable identity.
+
+Shared-mode compatibility observed for device index `9`:
+
+| Requested format | Observed result | Detail |
+| --- | --- | --- |
+| 44.1 kHz × 1 channel | Unsupported | `Invalid sample rate [PaErrorCode -9997]` |
+| 44.1 kHz × 2 channels | Unsupported | `Invalid sample rate [PaErrorCode -9997]` |
+| 48 kHz × 1 channel | Supported | WASAPI shared mode |
+| 48 kHz × 2 channels | Supported | WASAPI shared mode |
+
+Capture and report evidence:
+
+| Check | Requested / setup | Observed result | Termination |
+| --- | --- | --- | --- |
+| Three-second capture | 144,000 frames | Received 144,000 frames at 48,000 Hz; reported input latency 22 ms; zero overflowed reads; zero non-finite samples | Completed normally |
+| Music capture | 30 seconds / 1,440,000 frames | Received 1,440,000 frames; duration 30.000000 s at 48,000 Hz; RMS 0.03892087; peak 0.48922929; zero near-full-scale samples; zero non-finite samples; zero overflowed reads | Completed normally |
+| Five repeats | 5 × 3 seconds | Every run received 144,000 / 144,000 frames, opened at 48 kHz, and reported 22 ms latency; zero overflows across all five runs; zero non-finite samples; no near-full-scale samples | All five completed normally |
+| Ctrl+C | Requested 30 seconds | Interrupted after 252,000 frames / 5.25 seconds; partial diagnostics preserved; actual rate 48 kHz; zero overflowed reads; zero non-finite samples | Correctly reported as interrupted |
+| Stability capture | 5 minutes / 14,400,000 frames | Received 14,400,000 frames; duration 300.000000 s at 48,000 Hz; reported input latency 22 ms; RMS 0.03938381; peak 0.55860990; zero near-full-scale samples; zero non-finite samples; zero overflowed reads | Completed normally |
+| Default report | `report` | Selected the WASAPI default input successfully, reproduced the compatibility matrix, and completed its built-in three-second capture successfully | Completed normally |
+
+The laptop run did not establish results for the separate quiet-room, sharp-clap, invalid-
+input, exclusive-mode, or removable-device disconnect checks. Those observations remain
+unrecorded and must not be inferred from the successful captures above.
 
 ## Lights hardware acceptance for tomorrow
 
 Collect evidence without changing code unless the probe itself is broken.
+
+**Status: pending.** None of the laptop-only observations above completes or changes any
+Lights hardware acceptance item below.
 
 1. Determine whether the feed entering Windows is a physical input or requires Windows
    playback loopback. If loopback is required, stop and record that dependency finding;
