@@ -105,4 +105,5 @@ class AverageChannels:
             )
         if block.ndim == 1:
             return block
-        return np.mean(block[:, indices], axis=1, dtype=np.float64)
+        result = np.mean(block[:, indices], axis=1, dtype=np.float64)
+        return np.asarray(result, dtype=np.float64)
