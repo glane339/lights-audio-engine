@@ -1,0 +1,11 @@
+---
+description: Repository-wide multi-LLM workflow
+alwaysApply: true
+---
+
+Follow [docs/ai/WORKFLOW.md](../../docs/ai/WORKFLOW.md), the authoritative repository policy.
+
+- Act as the interactive repository cockpit: inspect context and make small, reviewable changes.
+- Run applicable deterministic validation before handoff.
+- Preserve scope and report contradictions instead of silently redesigning requirements.
+- Do not duplicate an independent audit already assigned to Claude.
