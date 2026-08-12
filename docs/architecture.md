@@ -1,6 +1,6 @@
 # Lights Audio Engine architecture
 
-_M0/M1 analysis and M2A capture boundaries for contributors._
+_M0/M1 analysis and M2 capture boundaries for contributors._
 
 ---
 
@@ -63,8 +63,8 @@ Windows audio hardware
 The sidecar reports device indexes and names for investigation only. PortAudio does not make
 those observations stable across enumeration, replug, or reboot. M2A now defines the
 hardware-independent `AudioSource` and frame-assembly boundary. Endpoint identity, loopback,
-resampling, reconnect, watchdog behavior, and the actual capture backend remain M2B decisions
-informed by physical-hardware evidence.
+resampling, reconnect, and watchdog behavior remain future production-runtime decisions informed
+by physical-hardware evidence.
 
 ## Production capture boundary (M2A)
 
@@ -79,8 +79,40 @@ Overflow, dropped blocks, sample-rate changes, and restarts are yielded as `Disc
 values. The affected block is not converted into a gapped frame, assembler timing and observed
 channel count rebase, and `run_engine` resets `AudioEngine` before processing the next logical
 stream. The driver is the only M2A component that knows both source and engine contracts. The
-M1.5 probe remains a separate diagnostic sidecar and is not a production source. M2B will supply
-the evidence-backed hardware/backend implementation without changing these M2A boundaries.
+M1.5 probe remains a separate diagnostic sidecar and is not a production source.
+
+## Live engine diagnostic (M2B evidence milestone)
+
+`SoundDeviceAudioSource` is the first reusable `AudioSource` implementation. It lazily loads the
+optional sounddevice runtime, performs blocking reads, converts each raw block through
+`FrameAssembler`, and yields explicit overflow or dropped-block discontinuities. An optional
+observer can report a discontinuity before it is yielded, but it cannot replace delivery of the
+boundary or `run_engine`'s existing engine reset. The temporary
+`python -m lights_audio_engine.diagnostic` wrapper resolves a current device selector, constructs
+this source and the existing engine, and prints beat and changed-BPM observations.
+
+```text
+Windows input selected at run time
+    -> sounddevice / PortAudio
+    -> SoundDeviceAudioSource
+    -> FrameAssembler
+    -> run_engine (resets on Discontinuity)
+    -> AudioEngine
+    -> temporary diagnostic output
+```
+
+The initial diagnostic reads 960 frames at a time. At 48 kHz, those 960 samples span 20 ms and
+exactly supply the detector's current 960-sample analysis window. The capture read and analysis
+window describe the same samples and must not be counted as two independent sequential waits.
+PortAudio's reported input-latency field is driver metadata, not a measurement of
+physical-event-to-Python or end-to-end response time. This milestone therefore makes no measured
+latency claim. Sample-derived frame and event timing is retained so a later instrumented test can
+measure latency empirically; aggressive latency tuning remains outside this diagnostic milestone.
+
+Device indexes are enumeration-local and are never embedded in the source or CLI. The diagnostic
+requires an explicit numeric index or unique case-insensitive name substring from a fresh probe
+listing. It defaults to shared mode, performs no automatic reconnect, and averages explicitly
+requested multichannel capture to the engine's mono frame contract.
 
 ## 📊 Domain contracts
 
@@ -162,11 +194,11 @@ until its semantics and fixtures are defined.
 
 ## 🚫 Deliberate non-goals
 
-The stable M0/M1 engine does not implement WAV/file sources, paced playback, production
-microphone capture, reconnect logic, advanced spectral or tempo tracking, drop heuristics,
+The stable M0/M1 engine does not implement WAV/file sources, paced playback, production-runtime
+capture orchestration, reconnect logic, advanced spectral or tempo tracking, drop heuristics,
 calibrated confidence, band analysis, networking, services, GUIs, databases, scenes, presets,
 DMX, sACN/E1.31, Art-Net, WLED, LedFx control, or ILDA output. The M1.5 WASAPI/
-sounddevice/PortAudio device probe is diagnostic-only and remains outside that engine.
+sounddevice/PortAudio probe and live CLI are diagnostic-only and remain outside that engine.
 
 Deterministic real-track replay and richer spectral analysis remain separately scoped future
 milestones. Neither belongs in this foundation hardening pass.
