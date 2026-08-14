@@ -23,6 +23,7 @@ from lights_audio_engine.diagnostic.session_log import (
     SessionInfo,
 )
 from lights_audio_engine.engine import AudioEngine
+from lights_audio_engine.evaluation.replay_capture import CapturingAudioSource
 from lights_audio_engine.probe.backend import SoundDeviceBackend
 from lights_audio_engine.probe.diagnostics import resolve_input_device
 from lights_audio_engine.probe.models import (
@@ -64,6 +65,7 @@ class _Options:
     min_bpm: float
     max_bpm: float
     log_jsonl: Path | None
+    capture_pcm: Path | None
     label: str
 
 
@@ -113,6 +115,11 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--min-bpm", type=_positive_float, default=50.0)
     parser.add_argument("--max-bpm", type=_positive_float, default=240.0)
     parser.add_argument("--log-jsonl", type=Path)
+    parser.add_argument(
+        "--capture-pcm",
+        type=Path,
+        help="diagnostic-only exact post-assembler float64 .npy artifact path",
+    )
     parser.add_argument("--label", default="")
     return parser
 
@@ -127,6 +134,7 @@ def _options(namespace: argparse.Namespace) -> _Options:
         min_bpm=cast(float, values["min_bpm"]),
         max_bpm=cast(float, values["max_bpm"]),
         log_jsonl=cast(Path | None, values["log_jsonl"]),
+        capture_pcm=cast(Path | None, values["capture_pcm"]),
         label=cast(str, values["label"]),
     )
 
@@ -187,6 +195,12 @@ def _run(
             logger.close()
         raise
     active_source: AudioSource = LoggedAudioSource(source, logger) if logger is not None else source
+    if options.capture_pcm is not None:
+        active_source = CapturingAudioSource(
+            active_source,
+            options.capture_pcm,
+            label=options.label,
+        )
     engine = LoggedAudioEngine(config, logger) if logger is not None else AudioEngine(config)
     print(
         f"Listening: [{device.index}] {device.name}, {options.sample_rate_hz} Hz, "

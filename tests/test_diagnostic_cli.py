@@ -238,6 +238,46 @@ def test_cli_without_log_path_does_not_construct_a_log_file(
     assert not untouched.exists()
 
 
+def test_cli_capture_pcm_saves_exact_post_assembler_frames_and_discontinuity(
+    tmp_path: Path,
+) -> None:
+    from lights_audio_engine.evaluation.artifact import read_artifact
+
+    first = AudioFrame(np.array([0.0, -0.0, 1.0 / 3.0]), 48_000, 8.0)
+    boundary = Discontinuity(DiscontinuityReason.OVERFLOW, 1, "input overflow")
+    second = AudioFrame(np.array([-0.25, 0.5]), 48_000, 12.0)
+    factory = RecordingSourceFactory((first, boundary, second))
+    path = tmp_path / "capture.npy"
+
+    exit_code = main(
+        ["--device", "3", "--capture-pcm", str(path), "--label", "m2c-capture"],
+        source_factory=factory,
+        backend_factory=FakeInventoryBackend,
+    )
+
+    assert exit_code == 0
+    artifact = read_artifact(path)
+    assert np.array_equal(artifact.samples, np.concatenate((first.samples, second.samples)))
+    assert artifact.frame_lengths == (3, 2)
+    assert artifact.segments[0].original_start_time_seconds == 8.0
+    assert artifact.segments[0].sample_count == 3
+    assert artifact.segments[1].original_start_time_seconds == 12.0
+    assert artifact.segments[1].discontinuity_before == "overflow"
+    assert factory.source is not None
+    assert factory.source.close_calls == 1
+
+
+def test_cli_without_capture_pcm_creates_no_authoritative_artifact(tmp_path: Path) -> None:
+    factory = RecordingSourceFactory(_beat_frames()[:1])
+    untouched = tmp_path / "not-requested.npy"
+
+    assert (
+        main(["--device", "3"], source_factory=factory, backend_factory=FakeInventoryBackend) == 0
+    )
+    assert not untouched.exists()
+    assert not untouched.with_suffix(".json").exists()
+
+
 def test_cli_closes_logger_even_when_source_close_fails(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],

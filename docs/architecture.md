@@ -131,6 +131,20 @@ is not true end-to-end or acoustic-event-to-ping latency. See the
 [M2B beat characterization protocol](m2b-beat-characterization-protocol.md) for the real-hardware
 baseline procedure and report commands.
 
+## 🧪 Offline detector evaluation sidecar
+
+M2C adds `lights_audio_engine.evaluation` outside the stable engine and capture API. An optional
+diagnostic tap saves the exact post-`FrameAssembler` mono `float64` values as an authoritative
+`.npy` array with checksum-verified JSON metadata. Replay slices those values directly into
+stream-relative `AudioFrame` blocks without passing them through `FrameAssembler` again.
+
+The sidecar contains the unchanged energy-detector baseline and two experimental causal novelty
+detectors. It matches their events one-to-one with human beat point labels and reports per-track
+and pooled accuracy, missed-run, processing-time, and decision-latency evidence. Experimental
+detectors are not imported by `AudioEngine`, the production `detectors` package, or the package
+root. See the [M2C detector bake-off guide](m2c-detector-bakeoff.md) for artifact, annotation,
+matching, latency, dataset, and quality-gate contracts.
+
 ## 📊 Domain contracts
 
 | Model | Contract |
