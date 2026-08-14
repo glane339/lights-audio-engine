@@ -114,6 +114,23 @@ requires an explicit numeric index or unique case-insensitive name substring fro
 listing. It defaults to shared mode, performs no automatic reconnect, and averages explicitly
 requested multichannel capture to the engine's mono frame contract.
 
+### Diagnostic characterization sidecar
+
+The optional `--log-jsonl` path adds a diagnostic-only wrapper around the live source and existing
+`AudioEngine`. It observes yielded discontinuities, times synchronous `process(frame)` calls, and
+writes versioned session, beat, discontinuity, and periodic-summary records. `run_engine` still
+owns engine resets at each yielded boundary. The production engine, detector, capture callback,
+frame assembler, and public event models do not know about logging.
+
+The JSONL schema keeps two clocks with distinct meanings. A detector beat timestamp is derived
+from sample position within the current logical stream. A host monotonic timestamp records when
+the diagnostic consumer observed the result relative to session start. Processing duration covers
+only the synchronous software call to `AudioEngine.process`; driver-reported capture latency
+remains metadata. Host time minus stream time includes unknown buffering and clock offset, so it
+is not true end-to-end or acoustic-event-to-ping latency. See the
+[M2B beat characterization protocol](m2b-beat-characterization-protocol.md) for the real-hardware
+baseline procedure and report commands.
+
 ## 📊 Domain contracts
 
 | Model | Contract |

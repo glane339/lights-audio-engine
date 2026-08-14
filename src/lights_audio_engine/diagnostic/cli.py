@@ -7,6 +7,7 @@ import sys
 from collections.abc import Callable
 from dataclasses import dataclass
 from math import isfinite
+from pathlib import Path
 from typing import Protocol, cast
 
 from lights_audio_engine.capture import AudioSource, Discontinuity, run_engine
@@ -15,6 +16,12 @@ from lights_audio_engine.capture.live_source import (
     SoundDeviceAudioSource,
 )
 from lights_audio_engine.config import AudioEngineConfig
+from lights_audio_engine.diagnostic.session_log import (
+    JsonlSessionLogger,
+    LoggedAudioEngine,
+    LoggedAudioSource,
+    SessionInfo,
+)
 from lights_audio_engine.engine import AudioEngine
 from lights_audio_engine.probe.backend import SoundDeviceBackend
 from lights_audio_engine.probe.diagnostics import resolve_input_device
@@ -56,6 +63,8 @@ class _Options:
     sensitivity: float
     min_bpm: float
     max_bpm: float
+    log_jsonl: Path | None
+    label: str
 
 
 def _positive_int(value: str) -> int:
@@ -103,6 +112,8 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--sensitivity", type=_sensitivity, default=0.5)
     parser.add_argument("--min-bpm", type=_positive_float, default=50.0)
     parser.add_argument("--max-bpm", type=_positive_float, default=240.0)
+    parser.add_argument("--log-jsonl", type=Path)
+    parser.add_argument("--label", default="")
     return parser
 
 
@@ -115,6 +126,8 @@ def _options(namespace: argparse.Namespace) -> _Options:
         sensitivity=cast(float, values["sensitivity"]),
         min_bpm=cast(float, values["min_bpm"]),
         max_bpm=cast(float, values["max_bpm"]),
+        log_jsonl=cast(Path | None, values["log_jsonl"]),
+        label=cast(str, values["label"]),
     )
 
 
@@ -140,20 +153,48 @@ def _run(
         min_bpm=options.min_bpm,
         max_bpm=options.max_bpm,
     )
-    source = source_factory(
-        device.index,
-        sample_rate_hz=options.sample_rate_hz,
-        channels=options.channels,
-        block_size_frames=960,
-        on_discontinuity=_print_discontinuity,
+    logger = (
+        JsonlSessionLogger(
+            options.log_jsonl,
+            SessionInfo(
+                label=options.label,
+                device_index=device.index,
+                device_name=device.name,
+                sample_rate_hz=options.sample_rate_hz,
+                channels=options.channels,
+                block_size_frames=960,
+                sensitivity=config.sensitivity,
+                min_bpm=config.min_bpm,
+                max_bpm=config.max_bpm,
+                analysis_window_seconds=config.analysis_window_seconds,
+                energy_history_seconds=config.energy_history_seconds,
+                bpm_history_size=config.bpm_history_size,
+            ),
+        )
+        if options.log_jsonl is not None
+        else None
     )
+    try:
+        source = source_factory(
+            device.index,
+            sample_rate_hz=options.sample_rate_hz,
+            channels=options.channels,
+            block_size_frames=960,
+            on_discontinuity=_print_discontinuity,
+        )
+    except BaseException:
+        if logger is not None:
+            logger.close()
+        raise
+    active_source: AudioSource = LoggedAudioSource(source, logger) if logger is not None else source
+    engine = LoggedAudioEngine(config, logger) if logger is not None else AudioEngine(config)
     print(
         f"Listening: [{device.index}] {device.name}, {options.sample_rate_hz} Hz, "
         f"{options.channels} channel(s), 960-frame reads"
     )
     last_bpm: float | None = None
     try:
-        for result in run_engine(source, AudioEngine(config)):
+        for result in run_engine(active_source, engine):
             for event in result.beat_events:
                 print(
                     f"Beat {event.beat_index}: t={event.timestamp_seconds:.6f}s "
@@ -163,7 +204,11 @@ def _run(
                 print(f"BPM: {result.bpm:.3f}")
                 last_bpm = result.bpm
     finally:
-        source.close()
+        try:
+            active_source.close()
+        finally:
+            if logger is not None:
+                logger.close()
     return 0
 
 
@@ -196,6 +241,6 @@ def main(
     except KeyboardInterrupt:
         print("Live diagnostic interrupted.", file=sys.stderr)
         return 130
-    except RuntimeError as error:
+    except (OSError, RuntimeError) as error:
         print(f"Live diagnostic failure: {error}", file=sys.stderr)
         return 6
