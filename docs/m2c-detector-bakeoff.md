@@ -207,6 +207,8 @@ Completing the real-audio milestone still requires:
 4. Run the complete multi-candidate bake-off.
 5. Inspect per-track failures, pooled metrics, timing accuracy, latency, and quality gates.
 6. Record the evidence without committing captured audio or local artifacts.
+7. Optionally use the [Librosa offline benchmark](m2c-librosa-offline-benchmark.md) as advisory
+   review material; it cannot supply a production recommendation.
 
 Until those steps are complete, M2C has an implemented evaluation system but no evidence-backed
 production-detector winner.
