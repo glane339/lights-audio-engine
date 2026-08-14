@@ -20,7 +20,9 @@ def _write_pulse_artifact(tmp_path: Path, beat_times: tuple[float, ...] = (0.5, 
     return path
 
 
-def test_cli_missing_librosa_exits_with_documented_message(tmp_path: Path, monkeypatch) -> None:
+def test_cli_missing_librosa_exits_with_documented_message(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     import sys
 
     from lights_audio_engine.evaluation.librosa_bench.cli import main
