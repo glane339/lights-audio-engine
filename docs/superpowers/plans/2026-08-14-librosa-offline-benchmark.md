@@ -136,19 +136,20 @@ No `tests/evaluation/librosa_bench/__init__.py` is needed — `tests/evaluation/
 # _librosa_backend.py
 class LibrosaUnavailableError(ImportError): ...
 
+
 @dataclass(frozen=True, slots=True)
 class OnsetEnvelope:
     values: tuple[float, ...]
     hop_length: int
     frame_rate_hz: float
 
+
 def estimate_tempo_and_beats(
     samples: npt.NDArray[np.float64], sample_rate_hz: int
 ) -> tuple[float, tuple[float, ...]]: ...
 
-def onset_envelope(
-    samples: npt.NDArray[np.float64], sample_rate_hz: int
-) -> OnsetEnvelope: ...
+
+def onset_envelope(samples: npt.NDArray[np.float64], sample_rate_hz: int) -> OnsetEnvelope: ...
 ```
 
 `sample_rate_hz` is a required positional/keyword argument with no default on both functions —
@@ -342,6 +343,7 @@ the file it belongs to.)
 ```python
 class LibrosaAnalysisError(ValueError): ...
 
+
 @dataclass(frozen=True, slots=True)
 class OnsetSummary:
     hop_length: int
@@ -349,6 +351,7 @@ class OnsetSummary:
     mean_strength: float
     max_strength: float
     frame_count: int
+
 
 @dataclass(frozen=True, slots=True)
 class LibrosaAnalysis:
@@ -360,9 +363,11 @@ class LibrosaAnalysis:
     onset_summary: OnsetSummary
     onset_envelope: OnsetEnvelope  # full-resolution; never serialized directly into the JSON report
 
+
 def analyze_segment(
     artifact: PcmArtifact, *, segment_index: int | None = None
 ) -> LibrosaAnalysis: ...
+
 
 def write_onset_envelope(path: Path, envelope: OnsetEnvelope) -> None: ...
 def read_onset_envelope(path: Path) -> OnsetEnvelope: ...
@@ -410,7 +415,9 @@ def _write_artifact(tmp_path: Path, *, sample_rate_hz: int = 48_000, sample_coun
     return path
 
 
-def test_analyze_segment_passes_exact_sample_rate_with_no_default(tmp_path: Path, monkeypatch) -> None:
+def test_analyze_segment_passes_exact_sample_rate_with_no_default(
+    tmp_path: Path, monkeypatch
+) -> None:
     from lights_audio_engine.evaluation.artifact import read_artifact
     from lights_audio_engine.evaluation.librosa_bench import analysis
     from lights_audio_engine.evaluation.librosa_bench._librosa_backend import OnsetEnvelope
@@ -558,7 +565,9 @@ def write_audacity_labels(
     path: Path, beat_times_seconds: tuple[float, ...], *, label_prefix: str = "librosa-beat"
 ) -> None: ...
 
+
 def write_candidate_reference(path: Path, beat_times_seconds: tuple[float, ...]) -> None: ...
+
 
 def convert_audacity_export_to_reference(audacity_path: Path, output_path: Path) -> None: ...
 ```
@@ -682,6 +691,7 @@ git commit -m "feat: add librosa export adapters for Audacity and M2C candidate 
 ```python
 DECISION_LATENCY_NOT_APPLICABLE: str  # literal explanatory string, design §7
 
+
 @dataclass(frozen=True, slots=True)
 class LibrosaScore:
     reference_path: str
@@ -698,6 +708,7 @@ class LibrosaScore:
     decision_latency: str = DECISION_LATENCY_NOT_APPLICABLE
     # deliberately no field of numeric type with "latency" in its name
 
+
 def score_against_human_reference(
     reference_path: Path,
     beat_times_seconds: tuple[float, ...],
@@ -705,10 +716,11 @@ def score_against_human_reference(
     tolerance_seconds: float = 0.05,
 ) -> LibrosaScore: ...
 
+
 @dataclass(frozen=True, slots=True)
 class LibrosaBenchmarkReport:
-    kind: str              # always "librosa_offline_benchmark"
-    advisory_only: bool    # always True
+    kind: str  # always "librosa_offline_benchmark"
+    advisory_only: bool  # always True
     production_candidate: bool  # always False
     label: str
     segment_index: int
@@ -720,12 +732,14 @@ class LibrosaBenchmarkReport:
     onset_envelope_path: str | None
     human_comparison: LibrosaScore | None
 
+
 def build_report(
     analysis: LibrosaAnalysis,
     human_comparison: LibrosaScore | None,
     *,
     onset_envelope_path: Path | None = None,
 ) -> LibrosaBenchmarkReport: ...
+
 
 def write_report(path: Path, report: LibrosaBenchmarkReport) -> None: ...
 ```
@@ -769,7 +783,11 @@ def _analysis(label="track", segment_index=0, sample_rate_hz=48_000):
         tempo_bpm=120.0,
         beat_times_seconds=(0.5, 1.0, 1.5),
         onset_summary=OnsetSummary(
-            hop_length=512, frame_rate_hz=93.75, mean_strength=0.1167, max_strength=0.2, frame_count=3
+            hop_length=512,
+            frame_rate_hz=93.75,
+            mean_strength=0.1167,
+            max_strength=0.2,
+            frame_count=3,
         ),
         onset_envelope=envelope,
     )
