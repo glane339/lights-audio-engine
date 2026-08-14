@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Callable, Iterator
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -37,10 +39,12 @@ class FakeSource:
         *,
         on_discontinuity: Callable[[Discontinuity], object] | None,
         interrupt_after_items: bool = False,
+        close_error: bool = False,
     ) -> None:
         self.items = items
         self.on_discontinuity = on_discontinuity
         self.interrupt_after_items = interrupt_after_items
+        self.close_error = close_error
         self.close_calls = 0
 
     @property
@@ -57,6 +61,8 @@ class FakeSource:
 
     def close(self) -> None:
         self.close_calls += 1
+        if self.close_error:
+            raise RuntimeError("source close failed")
 
 
 class RecordingSourceFactory:
@@ -65,9 +71,11 @@ class RecordingSourceFactory:
         items: tuple[CaptureItem, ...] = (),
         *,
         interrupt_after_items: bool = False,
+        close_error: bool = False,
     ) -> None:
         self.items = items
         self.interrupt_after_items = interrupt_after_items
+        self.close_error = close_error
         self.calls: list[dict[str, object]] = []
         self.source: FakeSource | None = None
 
@@ -92,6 +100,7 @@ class RecordingSourceFactory:
             self.items,
             on_discontinuity=on_discontinuity,
             interrupt_after_items=self.interrupt_after_items,
+            close_error=self.close_error,
         )
         return self.source
 
@@ -172,6 +181,81 @@ def test_cli_prints_beats_changed_bpm_and_discontinuities(
     assert "Discontinuity: overflow after 3 frame(s) (input overflow)" in captured.err
     assert factory.source is not None
     assert factory.source.close_calls == 1
+
+
+def test_cli_jsonl_logging_preserves_console_output_and_records_discontinuity(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    boundary = Discontinuity(DiscontinuityReason.OVERFLOW, 3, "input overflow")
+    factory = RecordingSourceFactory((*_beat_frames(), boundary, _beat_frames()[0]))
+    path = tmp_path / "live.jsonl"
+
+    exit_code = main(
+        [
+            "--device",
+            "Microphone Array",
+            "--log-jsonl",
+            str(path),
+            "--label",
+            "steady-house-normal-1",
+        ],
+        source_factory=factory,
+        backend_factory=FakeInventoryBackend,
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert captured.out.count("Beat ") == 4
+    assert "BPM: 120.000" in captured.out
+    assert "Discontinuity: overflow after 3 frame(s) (input overflow)" in captured.err
+    records = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+    assert records[0]["label"] == "steady-house-normal-1"
+    assert [record["stream_ordinal"] for record in records if record["type"] == "beat"] == [
+        0,
+        0,
+        0,
+        1,
+    ]
+
+
+def test_cli_without_log_path_does_not_construct_a_log_file(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    factory = RecordingSourceFactory(_beat_frames()[:1])
+    untouched = tmp_path / "not-requested.jsonl"
+
+    exit_code = main(
+        ["--device", "3", "--label", "ignored-without-log"],
+        source_factory=factory,
+        backend_factory=FakeInventoryBackend,
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert "Beat 0: t=0.000000s strength=0.800000" in captured.out
+    assert not untouched.exists()
+
+
+def test_cli_closes_logger_even_when_source_close_fails(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    factory = RecordingSourceFactory(_beat_frames()[:1], close_error=True)
+    path = tmp_path / "close-error.jsonl"
+
+    exit_code = main(
+        ["--device", "3", "--log-jsonl", str(path)],
+        source_factory=factory,
+        backend_factory=FakeInventoryBackend,
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 6
+    assert "Live diagnostic failure: source close failed" in captured.err
+    records = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+    assert any(record["type"] == "summary" for record in records)
 
 
 def test_cli_ctrl_c_closes_once_without_traceback(
