@@ -22,6 +22,9 @@ dev = [
 probe = [
     "sounddevice>=0.5.5,<0.6",
 ]
+librosa = [
+    "librosa>=0.10,<1",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/lights_audio_engine"]
