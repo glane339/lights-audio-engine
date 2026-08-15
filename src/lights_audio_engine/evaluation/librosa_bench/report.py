@@ -28,6 +28,7 @@ class LibrosaScore:
     precision: float
     recall: float
     f1: float
+    median_signed_timing_bias_seconds: float | None
     median_absolute_timing_error_seconds: float | None
     p95_absolute_timing_error_seconds: float | None
     decision_latency: str = DECISION_LATENCY_NOT_APPLICABLE
@@ -64,6 +65,7 @@ def score_against_human_reference(
         precision=metrics.precision,
         recall=metrics.recall,
         f1=metrics.f1,
+        median_signed_timing_bias_seconds=metrics.median_signed_timing_bias_seconds,
         median_absolute_timing_error_seconds=metrics.median_absolute_timing_error_seconds,
         p95_absolute_timing_error_seconds=metrics.p95_absolute_timing_error_seconds,
     )
@@ -83,6 +85,7 @@ class LibrosaBenchmarkReport:
     onset_summary: dict[str, float | int]
     onset_envelope_path: str | None
     human_comparison: LibrosaScore | None
+    decision_latency: str = DECISION_LATENCY_NOT_APPLICABLE
 
 
 def build_report(

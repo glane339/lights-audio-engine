@@ -42,6 +42,7 @@ def test_score_against_human_reference_reuses_real_matching_and_scoring(tmp_path
     assert score.false_negatives == 1
     assert score.precision == pytest.approx(2 / 3)
     assert score.recall == pytest.approx(2 / 3)
+    assert score.median_signed_timing_bias_seconds == pytest.approx(-0.005)
 
 
 def test_librosa_score_has_no_numeric_latency_field() -> None:
@@ -69,7 +70,10 @@ def test_librosa_score_decision_latency_is_the_documented_literal(tmp_path: Path
 
 
 def test_build_report_is_self_labeled_advisory_and_not_a_production_candidate() -> None:
-    from lights_audio_engine.evaluation.librosa_bench.report import build_report
+    from lights_audio_engine.evaluation.librosa_bench.report import (
+        DECISION_LATENCY_NOT_APPLICABLE,
+        build_report,
+    )
 
     report = build_report(_analysis(), human_comparison=None)
 
@@ -78,6 +82,11 @@ def test_build_report_is_self_labeled_advisory_and_not_a_production_candidate() 
     assert report.production_candidate is False
     assert report.beat_times_source == "librosa_offline_benchmark"
     assert report.human_comparison is None
+    assert report.decision_latency == DECISION_LATENCY_NOT_APPLICABLE
+
+    field_names = {field.name: field.type for field in dataclasses.fields(type(report))}
+    latency_fields = {name: type_ for name, type_ in field_names.items() if "latency" in name}
+    assert latency_fields == {"decision_latency": "str"}
 
 
 def test_write_report_serializes_schema_version_and_never_a_numeric_latency(tmp_path: Path) -> None:
@@ -100,6 +109,10 @@ def test_write_report_serializes_schema_version_and_never_a_numeric_latency(tmp_
     assert payload["schema_version"] == 1
     assert payload["advisory_only"] is True
     assert payload["production_candidate"] is False
+    assert payload["decision_latency"] == (
+        "not applicable — Librosa runs fully offline over the whole segment; "
+        "no causal emission time exists"
+    )
     assert payload["human_comparison"]["decision_latency"] == (
         "not applicable — Librosa runs fully offline over the whole segment; "
         "no causal emission time exists"
@@ -107,6 +120,7 @@ def test_write_report_serializes_schema_version_and_never_a_numeric_latency(tmp_
     assert "decision_latencies_seconds" not in payload["human_comparison"]
     assert "median_decision_latency_seconds" not in payload["human_comparison"]
     assert "p95_decision_latency_seconds" not in payload["human_comparison"]
+    assert payload["human_comparison"]["median_signed_timing_bias_seconds"] == pytest.approx(0.0)
 
 
 def test_librosa_benchmark_report_schema_has_no_bakeoff_report_fields() -> None:
