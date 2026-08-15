@@ -1,14 +1,23 @@
 from __future__ import annotations
 
+from os import replace
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 
 from lights_audio_engine.evaluation.reference import ReferenceFormatError, parse_reference
+
+
+def _require_librosa_suffix(path: Path, suffix: str) -> Path:
+    path = Path(path)
+    if not str(path).endswith(suffix):
+        raise ValueError(f"Librosa output path must use the {suffix} suffix")
+    return path
 
 
 def write_audacity_labels(
     path: Path, beat_times_seconds: tuple[float, ...], *, label_prefix: str = "librosa-beat"
 ) -> None:
-    Path(path).write_text(
+    _require_librosa_suffix(path, ".librosa-beats.txt").write_text(
         "".join(
             f"{time:.6f}\t{time:.6f}\t{label_prefix}-{index}\n"
             for index, time in enumerate(beat_times_seconds, 1)
@@ -18,7 +27,7 @@ def write_audacity_labels(
 
 
 def write_candidate_reference(path: Path, beat_times_seconds: tuple[float, ...]) -> None:
-    Path(path).write_text(
+    _require_librosa_suffix(path, ".librosa-candidate.txt").write_text(
         "".join(f"{time:.6f}\tbeat\n" for time in beat_times_seconds), encoding="utf-8"
     )
 
@@ -36,5 +45,18 @@ def convert_audacity_export_to_reference(audacity_path: Path, output_path: Path)
         if abs(start - end) > 1e-9:
             raise ReferenceFormatError(f"line {number} is a range label, not a point label")
         times.append(start)
-    write_candidate_reference(output_path, tuple(times))
-    parse_reference(output_path)
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with NamedTemporaryFile(
+        mode="w",
+        encoding="utf-8",
+        delete=False,
+        dir=output_path.parent,
+    ) as temporary:
+        temporary_path = Path(temporary.name)
+        temporary.write("".join(f"{time:.6f}\tbeat\n" for time in times))
+    try:
+        parse_reference(temporary_path)
+        replace(temporary_path, output_path)
+    finally:
+        temporary_path.unlink(missing_ok=True)

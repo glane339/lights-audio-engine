@@ -17,6 +17,27 @@ def test_write_audacity_labels_uses_point_label_convention(tmp_path: Path) -> No
     ]
 
 
+@pytest.mark.parametrize(
+    ("writer_name", "path"),
+    [
+        ("write_audacity_labels", "beats.txt"),
+        ("write_candidate_reference", "beats.txt"),
+    ],
+)
+def test_generated_exports_reject_paths_without_their_librosa_suffix(
+    tmp_path: Path, writer_name: str, path: str
+) -> None:
+    from lights_audio_engine.evaluation.librosa_bench import export
+
+    output = tmp_path / path
+    writer = getattr(export, writer_name)
+
+    with pytest.raises(ValueError, match="suffix"):
+        writer(output, (0.5,))
+
+    assert not output.exists()
+
+
 def test_write_candidate_reference_is_parseable_by_the_real_m2c_parser(tmp_path: Path) -> None:
     from lights_audio_engine.evaluation.librosa_bench.export import write_candidate_reference
     from lights_audio_engine.evaluation.reference import parse_reference
@@ -48,3 +69,28 @@ def test_convert_audacity_export_rejects_range_labels(tmp_path: Path) -> None:
     source.write_text("0.500000\t0.900000\tchorus\n", encoding="utf-8")
     with pytest.raises(ReferenceFormatError, match="range label"):
         convert_audacity_export_to_reference(source, tmp_path / "out.txt")
+
+
+@pytest.mark.parametrize(
+    "timestamps",
+    [
+        "0.5\t0.5\tbeat\n0.5\t0.5\tbeat\n",
+        "1.0\t1.0\tbeat\n0.5\t0.5\tbeat\n",
+    ],
+)
+def test_convert_audacity_export_rejects_non_monotonic_timestamps_without_output(
+    tmp_path: Path, timestamps: str
+) -> None:
+    from lights_audio_engine.evaluation.librosa_bench.export import (
+        convert_audacity_export_to_reference,
+    )
+    from lights_audio_engine.evaluation.reference import ReferenceFormatError
+
+    source = tmp_path / "reviewed.txt"
+    output = tmp_path / "promoted-reference.txt"
+    source.write_text(timestamps, encoding="utf-8")
+
+    with pytest.raises(ReferenceFormatError, match="strictly increasing"):
+        convert_audacity_export_to_reference(source, output)
+
+    assert not output.exists()
