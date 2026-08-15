@@ -21,7 +21,7 @@ def _write_pulse_artifact(tmp_path: Path, beat_times: tuple[float, ...] = (0.5, 
 
 
 def test_cli_missing_librosa_exits_with_documented_message(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     import sys
 
@@ -32,9 +32,11 @@ def test_cli_missing_librosa_exits_with_documented_message(
     output = tmp_path / "report.json"
 
     exit_code = main([str(artifact), "--output", str(output)])
+    captured = capsys.readouterr()
 
     assert exit_code == 2
     assert not output.exists()
+    assert ".[librosa]" in captured.err
 
 
 def test_cli_end_to_end_with_real_librosa_produces_advisory_report(tmp_path: Path) -> None:

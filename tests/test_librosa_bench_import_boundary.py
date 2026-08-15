@@ -62,3 +62,14 @@ def test_librosa_bench_import_does_not_require_librosa_to_be_installed() -> None
         "import lights_audio_engine.evaluation.librosa_bench.cli\n"
     )
     assert result.returncode == 0, result.stderr
+
+
+def test_librosa_bench_cli_import_does_not_pull_in_production_m2c_modules() -> None:
+    result = _run_isolated_import(
+        "import sys\n"
+        "import lights_audio_engine.evaluation.librosa_bench.cli\n"
+        "assert 'lights_audio_engine.evaluation.bakeoff' not in sys.modules\n"
+        "assert 'lights_audio_engine.evaluation.candidates' not in sys.modules\n"
+        "assert 'lights_audio_engine.evaluation.cli' not in sys.modules\n"
+    )
+    assert result.returncode == 0, result.stderr
