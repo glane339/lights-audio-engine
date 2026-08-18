@@ -121,6 +121,7 @@ Labels must use the exact sample timebase of the associated artifact segment.
 | A: `baseline` | Unchanged `EnergyBeatDetector` wrapper | Existing 20 ms windows |
 | B: `broadband` | Positive short-hop RMS novelty, adaptive median threshold | 5 ms; one hop |
 | C: `multiband` | Positive band-spectrum novelty fused before peak picking | 5 ms; one hop |
+| D: `causal-spectral-tempo` | Trailing-window robust spectral flux with bounded tempo/phase gating | 5 ms; one hop after a real 20 ms trailing window |
 
 B and C process fixed 240-sample hops independent of delivery block size. Both use past samples
 only, apply a candidate-specific frozen configuration, confirm an online local maximum with the
@@ -128,6 +129,15 @@ next hop, and use the configured 240 BPM maximum to impose a 250 ms refractory i
 zero-pads each causal 5 ms hop to a 960-point FFT for deterministic band resolution; zero-padding
 does not inspect future samples. Its low, mid, and high evidence is fused into one novelty value
 before peak picking, so coincident active bands cannot create one event per band.
+
+D also processes fixed 240-sample hops, but waits until it has 960 **real trailing samples** before
+computing a Hann-windowed 1024-point spectrum. It fuses positive log-band changes with a median,
+normalizes novelty against a bounded rolling median/MAD history, and confirms local maxima with
+one subsequent hop. Its internal period state tracks a primary 50–240 BPM period plus plausible
+half/double alternatives. After phase has stabilized, an isolated half-cycle candidate is rejected;
+two consistent off-phase candidates may reacquire a changed phase or tempo. It never emits a
+predicted beat without a confirmed onset peak, and its internal salience is exposed only as the
+existing evaluation `DetectedOnset.strength` value.
 
 ## 📏 Matching, scoring, and latency
 
