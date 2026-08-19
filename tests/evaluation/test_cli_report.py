@@ -52,9 +52,16 @@ def test_evaluation_cli_runs_dataset_manifest_and_writes_explicit_report(tmp_pat
         "baseline",
         "broadband",
         "multiband",
+        "causal-spectral-tempo",
         "NO PRODUCTION CANDIDATE YET",
     }
     assert report["ranking"]
+    assert {item["candidate_name"] for item in report["candidate_reports"]} == {
+        "baseline",
+        "broadband",
+        "multiband",
+        "causal-spectral-tempo",
+    }
     assert {item["block_size_frames"] for item in report["candidate_reports"]} == {
         240,
         480,

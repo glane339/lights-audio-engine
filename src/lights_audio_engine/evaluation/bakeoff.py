@@ -91,7 +91,7 @@ def run_bakeoff(
         raise ValueError("bake-off requires at least one track")
     factories: Mapping[str, Callable[[], Candidate]] = candidate_factories or {
         name: (lambda candidate_name=name: create_candidate(candidate_name))
-        for name in ("baseline", "broadband", "multiband")
+        for name in ("baseline", "broadband", "multiband", "causal-spectral-tempo")
     }
     evaluations: list[CandidateEvaluation] = []
     for candidate_name, factory in factories.items():

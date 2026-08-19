@@ -9,6 +9,9 @@ from typing import Protocol
 from lights_audio_engine.config import AudioEngineConfig
 from lights_audio_engine.detectors.energy import EnergyBeatDetector
 from lights_audio_engine.evaluation.detectors.broadband_onset import BroadbandOnsetDetector
+from lights_audio_engine.evaluation.detectors.causal_spectral_tempo import (
+    CausalSpectralTempoDetector,
+)
 from lights_audio_engine.evaluation.detectors.multiband_onset import MultibandOnsetDetector
 from lights_audio_engine.models import AudioFrame
 
@@ -52,7 +55,10 @@ class BaselineCandidate:
 
 
 class _NoveltyCandidate:
-    def __init__(self, detector: BroadbandOnsetDetector | MultibandOnsetDetector) -> None:
+    def __init__(
+        self,
+        detector: BroadbandOnsetDetector | MultibandOnsetDetector | CausalSpectralTempoDetector,
+    ) -> None:
         self._detector = detector
 
     def process(self, frame: AudioFrame) -> tuple[DetectedOnset, ...]:
@@ -74,4 +80,6 @@ def create_candidate(name: str) -> Candidate:
         return _NoveltyCandidate(BroadbandOnsetDetector())
     if name == "multiband":
         return _NoveltyCandidate(MultibandOnsetDetector())
+    if name == "causal-spectral-tempo":
+        return _NoveltyCandidate(CausalSpectralTempoDetector())
     raise ValueError(f"unknown M2C candidate: {name}")
