@@ -25,6 +25,9 @@ probe = [
 librosa = [
     "librosa>=0.10,<1",
 ]
+aubio = [
+    "aubio-ledfx>=0.4.11,<0.5",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/lights_audio_engine"]
