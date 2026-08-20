@@ -8,6 +8,7 @@ from lights_audio_engine.capture.channels import (
     SelectChannel,
 )
 from lights_audio_engine.capture.driver import run_engine
+from lights_audio_engine.capture.live_source import SoundDeviceAudioSource
 from lights_audio_engine.capture.models import (
     CaptureConfig,
     CaptureError,
@@ -31,5 +32,6 @@ __all__ = [
     "FrameAssemblyError",
     "MonoPassthrough",
     "SelectChannel",
+    "SoundDeviceAudioSource",
     "run_engine",
 ]
