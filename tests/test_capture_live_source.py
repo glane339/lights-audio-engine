@@ -6,8 +6,12 @@ import numpy as np
 import pytest
 
 from lights_audio_engine import AudioEngine
-from lights_audio_engine.capture import Discontinuity, DiscontinuityReason, run_engine
-from lights_audio_engine.capture.live_source import SoundDeviceAudioSource
+from lights_audio_engine.capture import (
+    Discontinuity,
+    DiscontinuityReason,
+    SoundDeviceAudioSource,
+    run_engine,
+)
 from lights_audio_engine.models import AudioFrame
 
 
@@ -108,6 +112,20 @@ def test_live_source_opens_requested_device_and_preserves_sample_timing() -> Non
         "dtype": "float32",
         "callback": None,
     }
+
+
+def test_live_source_passes_a_nonempty_string_device_selector_to_sounddevice() -> None:
+    stream = FakeInputStream((np.full((960, 1), 0.25, dtype=np.float32),))
+    module = FakeSoundDevice(stream)
+    selector = "Line In (USB Audio Device)"
+    source = SoundDeviceAudioSource(selector, module_loader=lambda: module)
+
+    first = next(source.stream())
+    source.close()
+
+    assert isinstance(first, AudioFrame)
+    assert module.input_stream_kwargs is not None
+    assert module.input_stream_kwargs["device"] == selector
 
 
 def test_live_source_averages_requested_multichannel_capture() -> None:
@@ -242,6 +260,10 @@ def test_live_source_rejects_invalid_capture_configuration() -> None:
 
     with pytest.raises(ValueError, match="device_index"):
         SoundDeviceAudioSource(-1, module_loader=module_loader)
+    with pytest.raises(ValueError, match="device_index"):
+        SoundDeviceAudioSource("", module_loader=module_loader)
+    with pytest.raises(ValueError, match="device_index"):
+        SoundDeviceAudioSource("   ", module_loader=module_loader)
     with pytest.raises(ValueError, match="sample_rate_hz"):
         SoundDeviceAudioSource(0, sample_rate_hz=0, module_loader=module_loader)
     with pytest.raises(ValueError, match="channels"):

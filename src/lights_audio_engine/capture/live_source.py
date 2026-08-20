@@ -52,6 +52,14 @@ def _positive_int(name: str, value: object, *, allow_zero: bool = False) -> int:
     return value
 
 
+def _device_selector(value: object) -> int | str:
+    if isinstance(value, str):
+        if not value.strip():
+            raise ValueError("device_index must be a non-negative integer or non-empty string")
+        return value
+    return _positive_int("device_index", value, allow_zero=True)
+
+
 class SoundDeviceAudioSource:
     """Synchronous ``AudioSource`` backed by blocking sounddevice reads.
 
@@ -62,7 +70,7 @@ class SoundDeviceAudioSource:
 
     def __init__(
         self,
-        device_index: int,
+        device_index: int | str,
         *,
         sample_rate_hz: int = 48_000,
         channels: int = 1,
@@ -71,7 +79,7 @@ class SoundDeviceAudioSource:
         assembler: FrameAssembler | None = None,
         on_discontinuity: DiscontinuityObserver | None = None,
     ) -> None:
-        self._device_index = _positive_int("device_index", device_index, allow_zero=True)
+        self._device_index = _device_selector(device_index)
         self._sample_rate_hz = _positive_int("sample_rate_hz", sample_rate_hz)
         self._channels = _positive_int("channels", channels)
         self._block_size_frames = _positive_int("block_size_frames", block_size_frames)
